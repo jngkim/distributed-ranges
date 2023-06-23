@@ -5,9 +5,10 @@
 FetchContent_Declare(
   dpl
   GIT_REPOSITORY https://github.com/oneapi-src/oneDPL.git
-  GIT_TAG oneDPL-2022.1.0-rc3
+  GIT_TAG main
   )
 FetchContent_MakeAvailable(dpl)
+  #  GIT_TAG oneDPL-2022.1.0-rc3
 
 # mpi:  multi-process
 

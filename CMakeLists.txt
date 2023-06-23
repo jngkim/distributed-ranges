@@ -9,6 +9,7 @@ project(
   DESCRIPTION "Distributed ranges")
 
 include(FetchContent)
+set(FETCHCONTENT_FULLY_DISCONNECTED ON)
 
 # Project wide defaults, not needed when another project uses the
 # library
@@ -68,7 +69,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   #
   # Common dependencies for examples
   #
-  find_package(MKL REQUIRED)
+  find_package(MKL CONFIG REQUIRED)
   find_package(MPI REQUIRED)
   find_package(OpenMP)
 
