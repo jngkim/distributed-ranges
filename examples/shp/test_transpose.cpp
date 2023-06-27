@@ -7,7 +7,7 @@
 #include <memory>
 #include <oneapi/mkl/blas.hpp>
 
-#define USE_MKL
+//#define USE_MKL
 
 namespace tryme {
 
@@ -26,6 +26,7 @@ sycl::event transpose(size_t m, size_t n,
   const size_t m_max         = ((m + tile_size - 1) / tile_size) * tile_size;
   const size_t n_max         = ((n + tile_size - 1) / tile_size) * tile_size;
   using temp_t = std::iter_value_t<T1>;
+  auto in_ = in.get_raw_pointer();
 
   return q.submit([&](sycl::handler& cgh) {
     cgh.depends_on(events);
@@ -38,7 +39,7 @@ sycl::event transpose(size_t m, size_t n,
       unsigned yth = item.get_local_id(0);
 
       if (x < n && y < m)
-        tile[yth][xth] = in[(y)*lda + x];
+        tile[yth][xth] = in_[(y)*lda + x];
       item.barrier(sycl::access::fence_space::local_space);
 
       x = item.get_group(0) * tile_size + xth;
@@ -61,14 +62,14 @@ int main(int argc, char **argv) {
 
   std::size_t nprocs = shp::nprocs();
   std::size_t m_local = 4*1024;
+  if (argc == 2) {
+    m_local = std::atoll(argv[1]);
+  }
   std::size_t m = nprocs * m_local;
   std::size_t lda = m;
   std::size_t n_elements = m_local * lda;
   std::size_t block_size = m_local * m_local;
 
-  if (argc == 2) {
-    n_elements = std::atoll(argv[1]);
-  }
 
   fmt::print("Transfer size {} GB\n", n_elements * 1e-9);
 
@@ -104,9 +105,9 @@ int main(int argc, char **argv) {
         auto e = tryme::transpose(m_local, m_local, send.begin() + j * m_local, lda, receive.begin() + i * m_local, lda);
         events.push_back(e);
       }
-      sycl::event::wait(events);
-      events.clear();
     }
+    sycl::event::wait(events);
+    events.clear();
   }
 
   auto end = std::chrono::high_resolution_clock::now();
