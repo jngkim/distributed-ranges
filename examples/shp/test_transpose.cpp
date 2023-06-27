@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
   using T = float;
 
   std::size_t nprocs = shp::nprocs();
-  std::size_t m_local = 4; //8*1024;
+  std::size_t m_local = 4*1024;
   std::size_t m = nprocs * m_local;
   std::size_t lda = m;
   std::size_t n_elements = m_local * lda;
@@ -102,17 +102,18 @@ int main(int argc, char **argv) {
   {
     for (std::size_t i = 0; i < nprocs; ++i)
     {
-      auto e = tryme::transpose(m_local, m_local, send.begin() + recv_from * m_local, lda, receive.begin() + recv_from * m_local, lda);
+      auto &&send = in_data[i];
+      auto &&receive = out_data[i];
+      auto e = tryme::transpose(m_local, m_local, send.begin() + i * m_local, lda, receive.begin() + i * m_local, lda);
       events.push_back(e);
     }
     sycl::event::wait(events);
     events.clear();
-
   }
   auto end = std::chrono::high_resolution_clock::now();
   double duration = std::chrono::duration<double>(end - begin).count();
 
-  std::size_t n_bytes = 2 * n_elements * sizeof(T) * shp::nprocs() * nreps;
+  std::size_t n_bytes = 2 * block_size * nprocs * sizeof(T) * nreps;
   double n_gbytes = double(n_bytes) * 1e-9;
 
   double bw = n_gbytes / duration;
