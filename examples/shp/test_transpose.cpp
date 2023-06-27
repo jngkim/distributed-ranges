@@ -7,7 +7,7 @@
 #include <memory>
 #include <oneapi/mkl/blas.hpp>
 
-//#define USE_MKL
+#define USE_MKL
 
 namespace tryme {
 
@@ -16,6 +16,7 @@ sycl::event transpose(size_t m, size_t n,
                       T1 in,  size_t lda, T2 out, size_t ldb,
                       const std::vector<sycl::event>& events = {})
 {
+  //gather mode
   auto &&q = dr::shp::__detail::get_queue_for_pointer(out);
 
 #ifdef USE_MKL
@@ -76,40 +77,38 @@ int main(int argc, char **argv) {
   std::vector<vector_type> in_data;
   std::vector<vector_type> out_data;
 
-  std::vector<vector_type> send_data;
-  std::vector<vector_type> receive_data;
-
   fmt::print("Allocating...\n");
-  std::vector<T> lv(n_elements);
-  std::vector<T> lb(block_size);
 
   for (std::size_t i = 0; i < shp::nprocs(); i++) {
     shp::device_allocator<T> allocator(shp::context(), shp::devices()[i]);
     in_data.emplace_back(n_elements, allocator);
     out_data.emplace_back(n_elements, allocator);
 
-    std::iota(lv.begin(), lv.end(), n_elements * i);
-    //shp::fill(send_data.back().begin(), send_data.back().end(), i);
-    dr::shp::copy(lv.begin(), lv.end(), in_data.back().begin());
-    shp::fill(out_data.back().begin(), out_data.back().end(), i);
+    shp::fill(in_data.back().begin(), in_data.back().end(), i);
+    shp::fill(out_data.back().begin(), out_data.back().end(), -1);
   }
 
   fmt::print("BW tests...\n");
-  int nreps = 100;
+  int nreps = 1;
   std::vector<sycl::event> events;
   auto begin = std::chrono::high_resolution_clock::now();
   for(int iter=0; iter < nreps; iter++)
   {
-    for (std::size_t i = 0; i < nprocs; ++i)
+    //transpose(A,B); 
+    for (std::size_t j = 0; j < nprocs; ++j)
     {
-      auto &&send = in_data[i];
-      auto &&receive = out_data[i];
-      auto e = tryme::transpose(m_local, m_local, send.begin() + i * m_local, lda, receive.begin() + i * m_local, lda);
-      events.push_back(e);
+      for (std::size_t i = 0; i < nprocs; ++i)
+      {
+        auto &&send = in_data[i];
+        auto &&receive = out_data[j];
+        auto e = tryme::transpose(m_local, m_local, send.begin() + j * m_local, lda, receive.begin() + i * m_local, lda);
+        events.push_back(e);
+      }
+      sycl::event::wait(events);
+      events.clear();
     }
-    sycl::event::wait(events);
-    events.clear();
   }
+
   auto end = std::chrono::high_resolution_clock::now();
   double duration = std::chrono::duration<double>(end - begin).count();
 
@@ -118,7 +117,7 @@ int main(int argc, char **argv) {
 
   double bw = n_gbytes / duration;
 
-  fmt::print("Tranpose {} {} GB/s\n", shp::nprocs(), bw);
+  fmt::print("transposition {}x{} on {} devices -> {} GB/s\n", m, m, shp::nprocs(), bw);
 
   return 0;
 }
