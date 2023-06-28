@@ -9,7 +9,7 @@
 
 //#define USE_MKL
 
-namespace tryme {
+namespace fft {
 
 template<typename T1, typename T2>
 sycl::event transpose(size_t m, size_t n,
@@ -71,23 +71,13 @@ int main(int argc, char **argv) {
   std::size_t block_size = m_local * m_local;
 
 
-  fmt::print("Transfer size {} GB\n", n_elements * 1e-9);
-
-  using vector_type = shp::vector<T, shp::device_allocator<T>>;
-
-  std::vector<vector_type> in_data;
-  std::vector<vector_type> out_data;
+  fmt::print("Transfer size {} GB per proc\n", n_elements * 1e-9);
 
   fmt::print("Allocating...\n");
-
-  for (std::size_t i = 0; i < shp::nprocs(); i++) {
-    shp::device_allocator<T> allocator(shp::context(), shp::devices()[i]);
-    in_data.emplace_back(n_elements, allocator);
-    out_data.emplace_back(n_elements, allocator);
-
-    shp::fill(in_data.back().begin(), in_data.back().end(), i);
-    shp::fill(out_data.back().begin(), out_data.back().end(), -1);
-  }
+  shp::distributed_vector<T> i_vec(nprocs * n_elements);
+  shp::distributed_vector<T> o_vec(nprocs * n_elements);
+  shp::iota(i_vec.begin(), i_vec.end(), 0);
+  shp::fill(o_vec.begin(), o_vec.end(), -1);
 
   fmt::print("BW tests...\n");
   int nreps = 1;
@@ -95,14 +85,15 @@ int main(int argc, char **argv) {
   auto begin = std::chrono::high_resolution_clock::now();
   for(int iter=0; iter < nreps; iter++)
   {
-    //transpose(A,B); 
-    for (std::size_t j = 0; j < nprocs; ++j)
+    //transpose(A,B)
+    for (std::size_t i = 0; i < nprocs; i++)
     {
-      for (std::size_t i = 0; i < nprocs; ++i)
+      for (std::size_t j_ = 0; j_ < nprocs; j_++)
       {
-        auto &&send = in_data[i];
-        auto &&receive = out_data[j];
-        auto e = tryme::transpose(m_local, m_local, send.begin() + j * m_local, lda, receive.begin() + i * m_local, lda);
+        std::size_t j = (j_ + i) % std::size_t(nprocs);
+        auto &&send = i_vec.segments()[i];
+        auto &&receive = o_vec.segments()[j];
+        auto e = fft::transpose(m_local, m_local, send.begin() + j * m_local, lda, receive.begin() + i * m_local, lda);
         events.push_back(e);
       }
     }
