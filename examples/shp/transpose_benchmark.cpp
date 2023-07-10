@@ -55,6 +55,7 @@ sycl::event transpose(size_t m, size_t n,
   });
 #endif
 }
+}
 
 namespace shp = dr::shp;
 
