@@ -92,6 +92,8 @@ int main(int argc, char **argv) {
   fmt::print("BW tests...\n");
   std::vector<sycl::event> events;
   auto begin = std::chrono::high_resolution_clock::now();
+  double t_first=0.0;
+
   for(int iter=0; iter < nreps+1; iter++)
   {
     //transpose(A,B)
@@ -110,7 +112,11 @@ int main(int argc, char **argv) {
     events.clear();
 
     if(iter==0)
-      begin = std::chrono::high_resolution_clock::now();
+    {
+      auto first_iter = std::chrono::high_resolution_clock::now();
+      t_first = std::chrono::duration<double>(first_iter - begin).count();
+      begin = first_iter;
+    }
   }
 
   auto end = std::chrono::high_resolution_clock::now();
@@ -122,6 +128,7 @@ int main(int argc, char **argv) {
   double bw = n_gbytes / duration;
 
   fmt::print("transposition {}x{} on {} devices -> {} GB/s\n", m, m, shp::nprocs(), bw);
+  fmt::print("time for the first loop {} secs \n", t_first);
 
   return 0;
 }

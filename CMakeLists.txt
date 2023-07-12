@@ -9,6 +9,7 @@ project(
   DESCRIPTION "Distributed ranges")
 
 include(FetchContent)
+set(FETCHCONTENT_FULLY_DISCONNECTED ON)
 
 # Project wide defaults, not needed when another project uses the
 # library
@@ -80,6 +81,11 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   find_package(MKL REQUIRED)
   find_package(MPI REQUIRED)
   find_package(OpenMP)
+
+  if(ENABLE_SYCL)
+    find_library(MKL_SYCL mkl_sycl)
+    target_link_libraries(MKL::MKL INTERFACE ${MKL_SYCL})
+  endif()
 
   #
   # Google test

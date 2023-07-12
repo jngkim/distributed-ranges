@@ -4,7 +4,7 @@
 
 function(add_shp_example_no_test example_name)
   add_executable(${example_name} ${example_name}.cpp)
-  target_link_libraries(${example_name} DR::shp)
+  target_link_libraries(${example_name} DR::shp MKL::MKL)
 endfunction()
 
 function(add_shp_example example_name)
@@ -20,6 +20,8 @@ add_shp_example(dot_product_benchmark)
 add_shp_example(sort_benchmark)
 add_shp_example(inclusive_scan_example)
 add_shp_example(exclusive_scan_example)
+add_shp_example(transpose_benchmark)
+add_shp_example(transpose_matrix)
 # unsatisfied dependency of grb/grb.hpp
 # add_shp_example(gemv_benchmark)
 add_shp_example_no_test(copy_test)
